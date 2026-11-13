@@ -1,0 +1,6 @@
+{
+  "name": "G8X Cloud Phone",
+  "description": "Hệ thống điều khiển LG G8X ThinQ từ xa 24/7 qua trình duyệt chạy trực tiếp trên Termux (Node.js + ADB Localhost + Cloudflare Tunnel).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

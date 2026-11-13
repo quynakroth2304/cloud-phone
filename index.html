@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>G8X Cloud Phone — Điều khiển LG G8X ThinQ 24/7 qua Termux & ADB</title>
+    <meta name="description" content="Hệ thống điều khiển LG G8X ThinQ từ xa 24/7 qua trình duyệt chạy trực tiếp trên Termux (Node.js + ADB Localhost + Cloudflare Tunnel)." />
+    <meta property="og:title" content="G8X Cloud Phone — Điều khiển LG G8X ThinQ 24/7 qua Termux & ADB" />
+    <meta property="og:description" content="Hệ thống điều khiển LG G8X ThinQ từ xa 24/7 qua trình duyệt chạy trực tiếp trên Termux (Node.js + ADB Localhost + Cloudflare Tunnel)." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <script>
+      (function () {
+        try {
+          var currentFetch = window.fetch ? window.fetch.bind(window) : undefined;
+          if (currentFetch) {
+            Object.defineProperty(window, 'fetch', {
+              configurable: true,
+              enumerable: true,
+              get: function () {
+                return currentFetch;
+              },
+              set: function (fn) {
+                if (typeof fn === 'function') {
+                  currentFetch = fn;
+                }
+              },
+            });
+          }
+        } catch (e) {}
+        window.addEventListener(
+          'error',
+          function (ev) {
+            if (
+              ev &&
+              ((ev.filename && ev.filename.indexOf('chrome-extension://') === 0) ||
+                (ev.message && ev.message.indexOf('Cannot set property fetch') !== -1))
+            ) {
+              ev.stopImmediatePropagation();
+              ev.preventDefault();
+            }
+          },
+          true
+        );
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

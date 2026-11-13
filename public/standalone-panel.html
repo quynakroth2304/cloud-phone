@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="vi" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>G8X Cloud Phone — Standalone Panel (HTML + Tailwind CDN + Vanilla JS)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    (function () {
+      try {
+        var currentFetch = window.fetch ? window.fetch.bind(window) : undefined;
+        if (currentFetch) {
+          Object.defineProperty(window, 'fetch', {
+            configurable: true,
+            enumerable: true,
+            get: function () {
+              return currentFetch;
+            },
+            set: function (fn) {
+              if (typeof fn === 'function') currentFetch = fn;
+            },
+          });
+        }
+      } catch (e) {}
+    })();
+    tailwind.config = {
+      darkMode: 'class',
+    };
+  </script>
+</head>
+<body class="min-h-screen bg-slate-950 text-slate-100 font-sans antialiased">
+  <!-- Header -->
+  <header class="flex items-center justify-between gap-8 px-6 py-3.5 border-b border-slate-800 bg-slate-900">
+    <a href="/" class="text-lg font-bold tracking-tight whitespace-nowrap shrink-0">G8X Cloud Phone</a>
+    <nav class="hidden md:flex items-center gap-6 text-sm font-medium text-slate-400">
+      <span>LG G8X ThinQ (LM-G850)</span>
+      <span>·</span>
+      <span id="status-adb">ADB: 127.0.0.1:5555</span>
+      <span>·</span>
+      <span id="status-battery">Pin: 84% (35.8°C)</span>
+    </nav>
+    <div class="flex items-center gap-2 shrink-0">
+      <button id="btn-theme" class="px-3 py-1.5 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700">
+        Đổi Giao Diện Sáng/Tối
+      </button>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="max-w-7xl mx-auto p-4 sm:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+    <!-- Khung điện thoại ở giữa/trái -->
+    <section class="lg:col-span-5 bg-slate-900 border border-slate-800 rounded-xl p-4 flex flex-col items-center gap-4">
+      <div class="w-full flex items-center justify-between text-xs text-slate-400">
+        <span id="coord-label" class="font-mono">WM Size: 1080×2340px</span>
+        <button id="btn-pause-stream" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200">
+          Dừng xem (Tiết kiệm Pin)
+        </button>
+      </div>
+
+      <div class="w-[310px] rounded-[26px] p-3 bg-slate-950 border-2 border-slate-700">
+        <div id="phone-screen" class="relative w-full aspect-[1080/2340] rounded-[16px] overflow-hidden bg-black cursor-crosshair select-none">
+          <img id="screen-img" alt="LG G8X Screen" class="w-full h-full object-cover pointer-events-none" />
+        </div>
+        <div class="mt-2.5 grid grid-cols-3 gap-2 text-xs font-medium">
+          <button onclick="sendKey('BACK')" class="py-2 rounded bg-slate-800 hover:bg-slate-700">Back</button>
+          <button onclick="sendKey('HOME')" class="py-2 rounded bg-slate-800 hover:bg-slate-700">Home</button>
+          <button onclick="sendKey('RECENTS')" class="py-2 rounded bg-slate-800 hover:bg-slate-700">Recents</button>
+        </div>
+      </div>
+
+      <form id="text-form" class="w-full flex gap-2">
+        <input id="text-input" type="text" placeholder="Nhập văn bản Tiếng Việt (ADBKeyboard)..." class="flex-1 px-3 py-2 text-xs rounded-lg bg-slate-950 border border-slate-700" />
+        <button type="submit" class="px-3.5 py-2 text-xs font-semibold rounded-lg bg-sky-600 hover:bg-sky-500 text-white">Gửi</button>
+      </form>
+    </section>
+
+    <!-- Thanh công cụ bên cạnh -->
+    <section class="lg:col-span-7 bg-slate-900 border border-slate-800 rounded-xl p-4 space-y-4">
+      <div class="flex flex-wrap gap-2">
+        <button onclick="sendKey('POWER')" class="px-3 py-1.5 text-xs font-medium rounded bg-slate-800 hover:bg-slate-700">Bật/Tắt màn hình</button>
+        <button onclick="sendKey('VOLUME_UP')" class="px-3 py-1.5 text-xs font-medium rounded bg-slate-800 hover:bg-slate-700">Âm lượng +</button>
+        <button onclick="sendKey('VOLUME_DOWN')" class="px-3 py-1.5 text-xs font-medium rounded bg-slate-800 hover:bg-slate-700">Âm lượng -</button>
+        <a href="/api/screen/screenshot" download class="px-3 py-1.5 text-xs font-medium rounded bg-sky-600 hover:bg-sky-500 text-white">Chụp màn hình tải về</a>
+      </div>
+
+      <div class="space-y-2">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Danh sách Ứng dụng (Package Manager)</h2>
+        <div id="app-list" class="divide-y divide-slate-800 border border-slate-800 rounded-lg max-h-60 overflow-y-auto text-xs"></div>
+      </div>
+
+      <div class="space-y-2">
+        <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Nhật ký Watchdog &amp; Logcat</h2>
+        <pre id="log-box" class="p-3 rounded-lg bg-slate-950 text-xs font-mono text-slate-300 max-h-48 overflow-y-auto"></pre>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Quy đổi tọa độ click sang độ phân giải thực 1080x2340 của LG G8X ThinQ
+    const screenEl = document.getElementById('phone-screen');
+    const screenImg = document.getElementById('screen-img');
+    const coordLabel = document.getElementById('coord-label');
+    let ws = null;
+    let paused = false;
+
+    function mapCoords(clientX, clientY) {
+      const rect = screenEl.getBoundingClientRect();
+      const x = Math.max(0, Math.min(1079, Math.round(((clientX - rect.left) / rect.width) * 1080)));
+      const y = Math.max(0, Math.min(2339, Math.round(((clientY - rect.top) / rect.height) * 2340)));
+      return { x, y };
+    }
+
+    screenEl.addEventListener('click', async (e) => {
+      const { x, y } = mapCoords(e.clientX, e.clientY);
+      coordLabel.textContent = `Tap: (${x}, ${y}) / 1080×2340`;
+      await fetch('/api/control/tap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ x, y })
+      });
+    });
+
+    async function sendKey(key) {
+      await fetch('/api/control/keyevent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key })
+      });
+    }
+
+    document.getElementById('text-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = document.getElementById('text-input');
+      if (!input.value.trim()) return;
+      await fetch('/api/control/text', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: input.value, method: 'auto' })
+      });
+      input.value = '';
+    });
+
+    function connectStream() {
+      if (paused) return;
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(`${proto}//${location.host}/ws/screen?autostart=1`);
+      ws.onmessage = (ev) => {
+        const msg = JSON.parse(ev.data);
+        if (msg.svgFrame) {
+          screenImg.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(msg.svgFrame);
+        }
+        if (msg.battery) {
+          document.getElementById('status-battery').textContent = `Pin: ${msg.battery.level}% (${msg.battery.temperatureC}°C)`;
+        }
+      };
+    }
+
+    document.getElementById('btn-pause-stream').addEventListener('click', (e) => {
+      paused = !paused;
+      e.target.textContent = paused ? 'Tiếp tục xem' : 'Dừng xem (Tiết kiệm Pin)';
+      if (paused && ws) ws.close();
+      else connectStream();
+    });
+
+    document.getElementById('btn-theme').addEventListener('click', () => {
+      document.documentElement.classList.toggle('dark');
+    });
+
+    async function loadState() {
+      await fetch('/api/auth/status?autostart=1');
+      const res = await fetch('/api/state');
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = document.getElementById('app-list');
+      list.innerHTML = data.device.apps.map(a => `
+        <div class="p-2.5 flex items-center justify-between">
+          <div><div class="font-semibold">${a.name}</div><div class="text-slate-400 font-mono">${a.pkg}</div></div>
+          <button onclick="fetch('/api/apps/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({pkg:'${a.pkg}',action:'launch'})})" class="px-2.5 py-1 rounded bg-sky-600 text-white">Mở</button>
+        </div>
+      `).join('');
+      document.getElementById('log-box').textContent = (data.watchdogLogs || []).join('\n');
+    }
+
+    loadState();
+    connectStream();
+  </script>
+</body>
+</html>
